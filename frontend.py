@@ -84,34 +84,34 @@ if submitted:
 plans = st.session_state.get("plans")
 if plans:
 
-    # ❶ 重複除去 : ?トークンを除いたファイルパスで一意化
-    uniq = {}
-    for p in plans:
-        key_path = p["path"].split("?")[0]
-        if key_path not in uniq:
-            uniq[key_path] = p
-    plans = list(uniq.values())
+# ❶ 重複除去 : ?トークンを除いたファイルパスで一意化
+uniq = {}
+for p in plans:
+    key_path = p["path"].split("?")[0]
+    if key_path not in uniq:
+        uniq[key_path] = p
+plans = list(uniq.values())
 
-    # ❷ 一覧ボタン表示
-    st.subheader("類似図面")
-    for idx, p in enumerate(plans):
-        signed = sb.storage.from_("floorplans").create_signed_url(
-            p["path"], 3600
-        ).get("signedURL")
+# ❷ 一覧ボタン表示
+st.subheader("類似図面")
+for idx, p in enumerate(plans):
+    signed = sb.storage.from_("floorplans").create_signed_url(
+        p["path"], 3600
+    ).get("signedURL")
 
-        if st.button(p["filename"], key=f"plan_btn_{idx}"):
-            st.session_state["pdf_modal_url"] = signed
+    if st.button(p["filename"], key=f"plan_btn_{idx}"):
+        st.session_state["pdf_modal_url"] = signed
 
 # ❸ モーダル表示
 if st.session_state.get("pdf_modal_url"):
-    with st.modal("図面プレビュー", key="pdf_modal"):
-        st.markdown(
-            f"<iframe src='{st.session_state['pdf_modal_url']}' "
-            "width='100%' height='650' style='border:none'></iframe>",
-            unsafe_allow_html=True
-        )
-        if st.button("閉じる", key="close_modal_btn"):
-            st.session_state["pdf_modal_url"] = None
+with st.modal("図面プレビュー", key="pdf_modal"):
+    st.markdown(
+        f"<iframe src='{st.session_state['pdf_modal_url']}' "
+        "width='100%' height='650' style='border:none'></iframe>",
+        unsafe_allow_html=True
+    )
+    if st.button("閉じる", key="close_modal_btn"):
+        st.session_state["pdf_modal_url"] = None
 # ---------- 類似図面ブロックここまで ----------
 
 
