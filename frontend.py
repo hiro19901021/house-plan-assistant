@@ -94,29 +94,28 @@ if plans:
         if st.button(p["filename"], key=f"btn_{p['id']}"):
             st.session_state["overlay_url"] = url
 
-    # 3) モーダルを描画（Streamlit 公式 API ではなく st.empty() + HTML）
-    if st.session_state["overlay_url"]:
-        modal = st.empty()             # 空のプレースホルダを用意
-        modal.html(
-            f"""
-            <div style='position:fixed;top:0;left:0;width:100%;height:100%;
-                        background:rgba(0,0,0,0.6);z-index:9999;'>
-              <div style='position:absolute;top:5%;left:5%;width:90%;height:90%;
-                          background:#fff;border-radius:8px;overflow:hidden;'>
-                <iframe src="{st.session_state['overlay_url']}"
-                        width="100%" height="100%" style="border:none;"></iframe>
-              </div>
+# ---------- モーダル表示 ----------
+if st.session_state["overlay_url"]:
+    placeholder = st.empty()                       # 空のコンテナ
+
+    placeholder.markdown(
+        f"""
+        <div style="position:fixed;top:0;left:0;width:100%;height:100%;
+                    background:rgba(0,0,0,0.6);z-index:9999;">
+            <div style="position:absolute;top:5%;left:5%;width:90%;height:90%;
+                        background:#fff;border-radius:8px;overflow:hidden;">
+            <iframe src="{st.session_state['overlay_url']}"
+                    width="100%" height="100%" style="border:none;"></iframe>
             </div>
-            """,
-            height=0, width=0
-        )
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-        # 4) ESC キーで閉じられないので “閉じる” ボタンを別に表示
-        if st.button("❌ 閉じる", key="close_modal"):
-            modal.empty()                       # オーバーレイを消す
-            st.session_state["overlay_url"] = None
-
-# ---------- ここまで置き換え ----------
+    if st.button("❌ 閉じる", key="close_modal"):
+        placeholder.empty()            # オーバーレイを消す
+        st.session_state["overlay_url"] = None
+# ---------- モーダル表示ここまで ----------
 
 
     st.subheader("提案プラン")
