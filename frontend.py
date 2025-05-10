@@ -142,8 +142,8 @@ if st.session_state["overlay_url"]:
 参考図面: {ctx}
 日本語で最適なプランを3案提案してください。"""
     with st.spinner("提案プランを検討中です…"):
-    ans = be.openai.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role":"user","content":prompt}]
-    ).choices[0].message.content
+        ans = be.openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role":"user","content":prompt}]
+        ).choices[0].message.content
     st.write(ans)
