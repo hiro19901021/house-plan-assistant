@@ -81,7 +81,7 @@ if submitted:
             p["path"], 3600
         ).get("signedURL")
 
-        if st.button(p["filename"]):
+        if st.button(p["filename"], key=f"btn_{p['id']}"):
             overlay_html = f"""
             <div style='position:fixed;top:0;left:0;width:100%;height:100%;
                         background:rgba(0,0,0,0.6);z-index:9999;'>
