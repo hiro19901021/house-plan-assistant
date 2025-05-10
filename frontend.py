@@ -100,13 +100,13 @@ if plans:
 if "pdf_modal_url" not in st.session_state:
     st.session_state["pdf_modal_url"] = None
 
-for p in plans:
+for idx, p in enumerate(plans):               # ★ enumerate で idx 付与
     url = sb.storage.from_("floorplans").create_signed_url(
         p["path"], 3600
     ).get("signedURL")
 
-    # ボタンを押した PDF の URL を state に格納
-    if st.button(p["filename"], key=f"btn_{p['id']}"):
+    unique_key = f"plan_btn_{idx}"            # ★ かぶらないキー
+    if st.button(p["filename"], key=unique_key):
         st.session_state["pdf_modal_url"] = url
 
 # URL がセットされていればモーダル表示
@@ -118,7 +118,7 @@ if st.session_state["pdf_modal_url"]:
             unsafe_allow_html=True
         )
         # 閉じるボタン
-        if st.button("閉じる"):
+        if st.button("閉じる", key="close_modal_btn"):
             st.session_state["pdf_modal_url"] = None
 # ---------- モーダル表示ここまで ----------
 
