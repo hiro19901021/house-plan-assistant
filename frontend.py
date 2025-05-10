@@ -149,3 +149,33 @@ if st.session_state["overlay_url"]:
             messages=[{"role":"user","content":prompt}]
         ).choices[0].message.content
     st.write(ans)
+    # ---------- チャット欄ここから ----------  ★追加開始
+st.divider()
+st.subheader("💬 追加質問・修正要望チャット")
+
+# ① これまでのやり取りを表示
+for m in st.session_state["chat_history"]:
+    with st.chat_message(m["role"]):
+        st.markdown(m["content"])
+
+# ② 入力ボックス
+if user_msg := st.chat_input("ここに質問や修正要望を入力してください…"):
+    # ②-1 ユーザー発言を履歴に追加
+    st.session_state["chat_history"].append({"role": "user", "content": user_msg})
+
+    # ②-2 LLM へ送信
+    with st.spinner("回答を生成中…"):
+        system_prompt = "これまでのプラン提案と以下の追加要望を踏まえて回答してください。"
+        reply = be.openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=(
+                [{"role": "system", "content": system_prompt}]
+                + st.session_state["chat_history"]
+            )
+        ).choices[0].message.content
+
+    # ②-3 アシスタント発言を履歴へ
+    st.session_state["chat_history"].append({"role": "assistant", "content": reply})
+
+    st.experimental_rerun()   # 画面を即リフレッシュ
+# ---------- チャット欄ここまで ----------  ★追加終了
