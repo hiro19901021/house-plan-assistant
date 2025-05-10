@@ -20,3 +20,12 @@ def embed(txt: str):
     rsp = openai.embeddings.create(
         model="text-embedding-3-small", input=[txt])
     return rsp.data[0].embedding
+
+# ---- テキストを安全サイズに分割 ----
+def chunk_text(txt: str, max_chars: int = 6000):
+    """
+    OpenAI Embedding が受け取れる 8k token 未満に
+    ざっくり合わせるため文字数で分割（日本語 ≒3 字で 1 token 目安）
+    """
+    for i in range(0, len(txt), max_chars):
+        yield txt[i : i + max_chars]

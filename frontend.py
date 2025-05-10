@@ -33,12 +33,16 @@ if st.sidebar.button("Register PDFs") and pdfs:
             )
 
             # ---- 埋め込みベクトルを計算して DB へ保存 ----
-            emb = be.embed(be.pdf_to_text(pdf.getvalue()))
-            sb.table("floorplans").insert(
-                {"filename": pdf.name,
-                 "path": path,
-                 "embedding": emb}
-            ).execute()
+                        # ---- テキストをチャンク分割 → それぞれ埋め込み保存 ----
+            full_txt = be.pdf_to_text(pdf.getvalue())
+            for chunk in be.chunk_text(full_txt):
+                emb = be.embed(chunk)
+                sb.table("floorplans").insert(
+                    {"filename": pdf.name,
+                     "path": path,
+                     "embedding": emb}
+                ).execute()
+
 
             st.sidebar.success(f"✓ {pdf.name} uploaded")
         except Exception as e:
