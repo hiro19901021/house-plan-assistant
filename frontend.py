@@ -1,5 +1,7 @@
 import streamlit as st, backend as be, textwrap
 # ---------- Overlay 用セッション状態 ----------
+if "plans" not in st.session_state:
+    st.session_state["plans"] = None
 if "overlay_url" not in st.session_state:
     st.session_state["overlay_url"] = None
 import streamlit.components.v1 as components
@@ -76,16 +78,42 @@ if submitted:
         f"{fam}人 {rooms}部屋 {area}㎡ 予算{bud}万円 {pref}")
     plans = sb.rpc("match_plans",
                    {"query": query, "top_n": 3}).execute().data
+    st.session_state["plans"] = plans
 
 
+# ---------- ここから置き換え ----------
+plans = st.session_state["plans"]          # 前回結果を取得
+if plans:
     st.subheader("類似図面")
     for p in plans:
         url = sb.storage.from_("floorplans").create_signed_url(
             p["path"], 3600
         ).get("signedURL")
 
+        # ボタンを押したら URL をセッションに保存だけ
         if st.button(p["filename"], key=f"btn_{p['id']}"):
             st.session_state["overlay_url"] = url
+
+    # クリック済みならオーバーレイを描画
+    if st.session_state["overlay_url"]:
+        components.html(f"""
+        <div style='position:fixed;top:0;left:0;width:100%;height:100%;
+                     background:rgba(0,0,0,0.6);z-index:9999;'>
+          <div style='position:absolute;top:5%;left:5%;width:90%;height:90%;'>
+            <iframe src="{st.session_state['overlay_url']}"
+                    width="100%" height="100%" style="border:none;"></iframe>
+            <button onclick="parent.postMessage({{type:'streamlit:rerun'}},'*')"
+                    style="position:absolute;top:8px;right:16px;
+                           padding:8px 12px;font-size:18px;border:none;
+                           background:#fff;border-radius:4px;cursor:pointer;">
+              ✕
+            </button>
+          </div>
+        </div>
+        """, height=0, width=0)
+        st.session_state["overlay_url"] = None   # 次回リセット
+# ---------- ここまで置き換え ----------
+
 
     st.subheader("提案プラン")
     ctx = "\n".join(f"{p['filename']}" for p in plans)
