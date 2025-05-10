@@ -1,3 +1,33 @@
+# ===== 共通ヘルパー =====
+import streamlit as st
+def show_pdf_modal(url: str):
+    """
+    Streamlit ≥1.29 なら st.modal を使う。
+    それ未満、またはネスト制限で AttributeError が出る環境では
+    簡易ダイアログに自動フォールバックする。
+    """
+    def _body():
+        st.markdown(
+            f"<iframe src='{url}' width='100%' height='650' style='border:none'></iframe>",
+            unsafe_allow_html=True,
+        )
+
+    # st.modal が使えるか判定
+    if hasattr(st, "modal"):
+        try:
+            with st.modal("図面プレビュー", key="pdf_modal"):
+                _body()
+                if st.button("閉じる", key="close_modal_btn"):
+                    st.session_state.pop("pdf_modal_url", None)
+                    st.rerun()
+        except AttributeError:
+            # まれにネスト制限で AttributeError が出る場合
+            st.warning("⚠️ 表示環境の都合で簡易プレビューになります")
+            _body()
+    else:
+        st.warning("⚠️ Streamlit のバージョンが古いため簡易プレビューになります")
+        _body()
+
 import streamlit as st, backend as be, textwrap
 # ---------- Overlay 用セッション状態 ----------
 if "plans" not in st.session_state or not isinstance(st.session_state["plans"], list):
@@ -81,38 +111,37 @@ if submitted:
     st.session_state["plans"] = plans
 
 # ---------- 類似図面（重複除去→一覧→モーダル） ----------
-plans = st.session_state.get("plans")
-if plans:
+# plans を空リストで初期化しておくと TypeError を根本回避
+plans = st.session_state.get("plans", [])
+if not isinstance(plans, list):
+    plans = []                  # 安全弁
 
-    # ❶ 重複除去 : ?トークンを除いたファイルパスで一意化
+if plans:
+    # ❶ 重複除去: 署名トークンを除いた path で辞書化
     uniq = {}
     for p in plans:
         key_path = p["path"].split("?")[0]
-        if key_path not in uniq:
-            uniq[key_path] = p
+        uniq[key_path] = p      # 後勝ちでも内容は同じ
     plans = list(uniq.values())
 
-# ❷ 一覧ボタン表示
     st.subheader("類似図面")
-    for idx, p in enumerate(plans):
+
+    # ❷ ボタン列
+    for p in plans:
         signed = sb.storage.from_("floorplans").create_signed_url(
             p["path"], 3600
         ).get("signedURL")
 
-        if st.button(p["filename"], key=f"plan_btn_{idx}"):
+        btn_key = f"similar_{hash(p['path'].split('?')[0])}"
+        if st.button(p["filename"], key=btn_key):
+            # 既にモーダルが開いていれば URL を更新
             st.session_state["pdf_modal_url"] = signed
 
-# ❸ モーダル表示
-if st.session_state.get("pdf_modal_url"):
-    with st.modal("図面プレビュー", key="pdf_modal"):
-        st.markdown(
-            f"<iframe src='{st.session_state['pdf_modal_url']}' "
-            "width='100%' height='650' style='border:none'></iframe>",
-            unsafe_allow_html=True
-        )
-        if st.button("閉じる", key="close_modal_btn"):
-            st.session_state["pdf_modal_url"] = None
+# ❸ モーダル呼び出し（必ず 1 か所）
+if "pdf_modal_url" in st.session_state:
+    show_pdf_modal(st.session_state["pdf_modal_url"])
 # ---------- 類似図面ブロックここまで ----------
+
 
     st.subheader("提案プラン")
     ctx = "\n".join(f"{p['filename']}" for p in plans)
