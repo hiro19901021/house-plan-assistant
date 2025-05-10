@@ -1,4 +1,5 @@
 import streamlit as st, backend as be, textwrap
+import uuid
 
 openai_key = st.secrets["OPENAI_API_KEY"]
 be.openai.api_key = openai_key
