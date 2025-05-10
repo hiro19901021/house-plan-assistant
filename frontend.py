@@ -1,4 +1,5 @@
 import streamlit as st, backend as be, textwrap
+import streamlit.components.v1 as components
 import uuid
 from slugify import slugify
 
@@ -74,9 +75,22 @@ if submitted:
                    {"query": query, "top_n": 3}).execute().data
 
     st.subheader("類似図面")
-    for p in plans:
-        url = sb.storage.from_("floorplans").get_public_url(p["path"])
-        st.markdown(f"- **{p['filename']}**  \n  {url}")
+    st.subheader("類似図面")
+for p in plans:
+    url = sb.storage.from_("floorplans").create_signed_url(
+        p["path"], 3600
+    ).link
+
+    if st.button(p["filename"]):
+        overlay_html = f"""
+        <div style='position:fixed;top:0;left:0;width:100%;height:100%;
+                     background:rgba(0,0,0,0.6);z-index:9999;'>
+          <div style='position:absolute;top:5%;left:5%;width:90%;height:90%;'>
+            <iframe src="{url}" width="100%" height="100%" style="border:none;"></iframe>
+          </div>
+        </div>
+        """
+        components.html(overlay_html, height=0, width=0)
 
     st.subheader("提案プラン")
     ctx = "\n".join(f"{p['filename']}" for p in plans)
