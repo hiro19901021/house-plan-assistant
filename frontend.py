@@ -21,25 +21,30 @@ pdfs = st.sidebar.file_uploader(
 
 if st.sidebar.button("Register PDFs") and pdfs:
     for pdf in pdfs:
-    # ----- PDF アップロード（デバッグ付き） -----
-    path = f"{uuid.uuid4()}/{pdf.name}"
-    st.sidebar.info("Uploading…")
+        # ---------- アップロード処理 ----------
+        path = f"{uuid.uuid4()}/{pdf.name}"
+        st.sidebar.info("Uploading…")
 
-    try:
-        sb.storage.from_("floorplans").upload(
-            path,
-            pdf.getvalue(),
-            {"content-type": "application/pdf"}
-        )
-        emb = be.embed(be.pdf_to_text(pdf.getvalue()))
-        sb.table("floorplans").insert(
-            {"filename": pdf.name, "path": path, "embedding": emb}
-        ).execute()
-        st.sidebar.success(f"✓ {pdf.name} uploaded")
-    except Exception as e:
-        st.sidebar.error(f"UPLOAD NG: {e}")
-        st.stop()
+        try:
+            sb.storage.from_("floorplans").upload(
+                path,
+                pdf.getvalue(),
+                {"content-type": "application/pdf"}
+            )
 
+            # ---- 埋め込みベクトルを計算して DB へ保存 ----
+            emb = be.embed(be.pdf_to_text(pdf.getvalue()))
+            sb.table("floorplans").insert(
+                {"filename": pdf.name,
+                 "path": path,
+                 "embedding": emb}
+            ).execute()
+
+            st.sidebar.success(f"✓ {pdf.name} uploaded")
+        except Exception as e:
+            st.sidebar.error(f"UPLOAD NG: {e}")
+            st.stop()
+        # ---------- アップロード処理ここまで ----------
 
 # ---------- 要望フォーム ----------
 st.title("House-Plan Assistant")
