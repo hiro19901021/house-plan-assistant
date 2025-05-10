@@ -97,17 +97,16 @@ if plans:
 if st.session_state["overlay_url"]:
     with st.modal("図面プレビュー", max_width=0):
         st.components.v1.html(
-# ---------- モーダル表示 ----------
-if st.session_state["overlay_url"]:
-    with st.modal("図面プレビュー", max_width=0):
-        st.components.v1.html(
             f"""
             <iframe src="{st.session_state['overlay_url']}"
-                    width="100%" height="800" style="border:none;"></iframe>
+                    width="100%" height="800"
+                    style="border:none;"></iframe>
             """,
-            height=820
+            height=820,
         )
+    # 次回再描画でモーダルを消す
     st.session_state["overlay_url"] = None
+
 # ---------- ここまで置き換え ----------
 
     st.subheader("提案プラン")
