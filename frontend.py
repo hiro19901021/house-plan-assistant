@@ -114,33 +114,6 @@ if st.session_state.get("pdf_modal_url"):
             st.session_state["pdf_modal_url"] = None
 # ---------- 類似図面ブロックここまで ----------
 
-
-# ---------- モーダル表示 ----------
-if "pdf_modal_url" not in st.session_state:
-    st.session_state["pdf_modal_url"] = None
-
-for idx, p in enumerate(plans):               # ★ enumerate で idx 付与
-    url = sb.storage.from_("floorplans").create_signed_url(
-        p["path"], 3600
-    ).get("signedURL")
-
-    unique_key = f"plan_btn_{idx}"            # ★ かぶらないキー
-    if st.button(p["filename"], key=unique_key):
-        st.session_state["pdf_modal_url"] = url
-
-# URL がセットされていればモーダル表示
-if st.session_state["pdf_modal_url"]:
-    with st.modal("図面プレビュー"):
-        st.markdown(
-            f"<iframe src='{st.session_state['pdf_modal_url']}' "
-            "width='100%' height='650' style='border:none'></iframe>",
-            unsafe_allow_html=True
-        )
-        # 閉じるボタン
-        if st.button("閉じる", key="close_modal_btn"):
-            st.session_state["pdf_modal_url"] = None
-# ---------- モーダル表示ここまで ----------
-
     st.subheader("提案プラン")
     ctx = "\n".join(f"{p['filename']}" for p in plans)
     prompt = f"""あなたはハウスメーカーの設計士です。
