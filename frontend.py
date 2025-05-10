@@ -21,15 +21,25 @@ pdfs = st.sidebar.file_uploader(
 
 if st.sidebar.button("Register PDFs") and pdfs:
     for pdf in pdfs:
-        path = f"{uuid.uuid4()}/{pdf.name}"
+    # ----- PDF アップロード（デバッグ付き） -----
+    path = f"{uuid.uuid4()}/{pdf.name}"
+    st.sidebar.info("Uploading…")
+
+    try:
         sb.storage.from_("floorplans").upload(
-            path, pdf.getvalue(),
-            {"content-type":"application/pdf"})
+            path,
+            pdf.getvalue(),
+            {"content-type": "application/pdf"}
+        )
         emb = be.embed(be.pdf_to_text(pdf.getvalue()))
         sb.table("floorplans").insert(
-            {"filename": pdf.name, "path": path,
-             "embedding": emb}).execute()
-    st.sidebar.success("✓ Uploaded")
+            {"filename": pdf.name, "path": path, "embedding": emb}
+        ).execute()
+        st.sidebar.success(f"✓ {pdf.name} uploaded")
+    except Exception as e:
+        st.sidebar.error(f"UPLOAD NG: {e}")
+        st.stop()
+
 
 # ---------- 要望フォーム ----------
 st.title("House-Plan Assistant")
