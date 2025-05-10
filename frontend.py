@@ -125,7 +125,7 @@ dedup = {}
 for p in plans:
     dedup[p["path"]] = p          # 同じ path が来たら上書き＝結果的に 1 件だけ残る
 plans = list(dedup.values())
-    st.session_state["pdf_modal_url"] = None
+        st.session_state["pdf_modal_url"] = None
 
 for idx, p in enumerate(plans):               # ★ enumerate で idx 付与
     url = sb.storage.from_("floorplans").create_signed_url(
