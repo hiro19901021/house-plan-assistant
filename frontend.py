@@ -7,8 +7,6 @@ if "chat_history" not in st.session_state:      # ★追加
 import streamlit.components.v1 as components
 import uuid
 from slugify import slugify
-import streamlit as st
-st.write("★ Streamlit runtime version:", st.__version__)
 
 openai_key = st.secrets["OPENAI_API_KEY"]
 be.openai.api_key = openai_key
