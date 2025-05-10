@@ -81,14 +81,14 @@ if submitted:
     st.session_state["plans"] = plans
 
 # ---------- 類似図面（重複除去→一覧→モーダル） ----------
-plans = st.session_state.get("plans")          # ① 取得
+plans = st.session_state.get("plans")  # ① 取得
 if plans:
 
     # ② 重複除去 : ?トークンを除いたファイルパスで一意化
     uniq = {}
     for p in plans:
-        key_path = p["path"].split("?")[0]     # 実ファイルパスのみ
-        if key_path not in uniq:               # 初出だけ残す
+        key_path = p["path"].split("?")[0]  # 実ファイルパスのみ
+        if key_path not in uniq:            # 初出だけ残す
             uniq[key_path] = p
     plans = list(uniq.values())
 
@@ -100,7 +100,7 @@ if plans:
         ).get("signedURL")
 
         if st.button(p["filename"], key=f"plan_btn_{idx}"):
-            st.session_state["pdf_modal_url"] = signed   # モーダル用 URL
+            st.session_state["pdf_modal_url"] = signed  # モーダル用 URL
 
 # ④ モーダル表示（キー付きで重複阻止）
 if st.session_state.get("pdf_modal_url"):
@@ -113,6 +113,7 @@ if st.session_state.get("pdf_modal_url"):
         if st.button("閉じる", key="close_modal_btn"):
             st.session_state["pdf_modal_url"] = None
 # ---------- 類似図面ブロックここまで ----------
+
 
 # ---------- モーダル表示 ----------
 if "pdf_modal_url" not in st.session_state:
