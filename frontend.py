@@ -1,5 +1,6 @@
 import streamlit as st, backend as be, textwrap
 import uuid
+from slugify import slugify
 
 openai_key = st.secrets["OPENAI_API_KEY"]
 be.openai.api_key = openai_key
@@ -22,7 +23,8 @@ pdfs = st.sidebar.file_uploader(
 if st.sidebar.button("Register PDFs") and pdfs:
     for pdf in pdfs:
         # ---------- アップロード処理 ----------
-        path = f"{uuid.uuid4()}/{pdf.name}"
+        safe_name = slugify(pdf.name, lowercase=False)
+        path = f"{uuid.uuid4()}/{safe_name}"
         st.sidebar.info("Uploading…")
 
         try:
