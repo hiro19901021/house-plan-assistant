@@ -1,7 +1,7 @@
 import streamlit as st, backend as be, textwrap
 # ---------- Overlay 用セッション状態 ----------
-if "plans" not in st.session_state:
-    st.session_state["plans"] = None
+if "plans" not in st.session_state or not isinstance(st.session_state["plans"], list):
+    st.session_state["plans"] = []     # 空リストを保証
 if "chat_history" not in st.session_state:      # ★追加
     st.session_state["chat_history"] = []       # ★追加
 import streamlit.components.v1 as components
@@ -118,14 +118,6 @@ if st.session_state.get("pdf_modal_url"):
 # ---------- モーダル表示 ----------
 if "pdf_modal_url" not in st.session_state:
     st.session_state["pdf_modal_url"] = None
-
-# ★★★ ここから追加：重複除去 ★★★
-# key は p["path"] でも p["filename"] でも OK。今回は path で判定
-dedup = {}
-for p in plans:
-    dedup[p["path"]] = p          # 同じ path が来たら上書き＝結果的に 1 件だけ残る
-plans = list(dedup.values())
-st.session_state["pdf_modal_url"] = None
 
 for idx, p in enumerate(plans):               # ★ enumerate で idx 付与
     url = sb.storage.from_("floorplans").create_signed_url(
