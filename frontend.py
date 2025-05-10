@@ -2,6 +2,8 @@ import streamlit as st, backend as be, textwrap
 # ---------- Overlay 用セッション状態 ----------
 if "plans" not in st.session_state:
     st.session_state["plans"] = None
+if "chat_history" not in st.session_state:      # ★追加
+    st.session_state["chat_history"] = []       # ★追加
 if "overlay_url" not in st.session_state:
     st.session_state["overlay_url"] = None
 import streamlit.components.v1 as components
