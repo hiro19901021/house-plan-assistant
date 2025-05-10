@@ -84,34 +84,34 @@ if submitted:
 plans = st.session_state.get("plans")          # ① 取得
 if plans:
 
-# ② 重複除去 : ?トークンを除いたファイルパスで一意化
-uniq = {}
-for p in plans:
-    key_path = p["path"].split("?")[0]     # 実ファイルパスのみ
-    if key_path not in uniq:               # 初出だけ残す
-        uniq[key_path] = p
-plans = list(uniq.values())
+    # ② 重複除去 : ?トークンを除いたファイルパスで一意化
+    uniq = {}
+    for p in plans:
+        key_path = p["path"].split("?")[0]     # 実ファイルパスのみ
+        if key_path not in uniq:               # 初出だけ残す
+            uniq[key_path] = p
+    plans = list(uniq.values())
 
-# ③ 一覧ボタン表示
-st.subheader("類似図面")
-for idx, p in enumerate(plans):
-    signed = sb.storage.from_("floorplans").create_signed_url(
-        p["path"], 3600
-    ).get("signedURL")
+    # ③ 一覧ボタン表示
+    st.subheader("類似図面")
+    for idx, p in enumerate(plans):
+        signed = sb.storage.from_("floorplans").create_signed_url(
+            p["path"], 3600
+        ).get("signedURL")
 
-    if st.button(p["filename"], key=f"plan_btn_{idx}"):
-        st.session_state["pdf_modal_url"] = signed   # モーダル用 URL
+        if st.button(p["filename"], key=f"plan_btn_{idx}"):
+            st.session_state["pdf_modal_url"] = signed   # モーダル用 URL
 
 # ④ モーダル表示（キー付きで重複阻止）
 if st.session_state.get("pdf_modal_url"):
-with st.modal("図面プレビュー", key="pdf_modal"):
-    st.markdown(
-        f"<iframe src='{st.session_state['pdf_modal_url']}' "
-        "width='100%' height='650' style='border:none'></iframe>",
-        unsafe_allow_html=True
-    )
-    if st.button("閉じる", key="close_modal_btn"):
-        st.session_state["pdf_modal_url"] = None
+    with st.modal("図面プレビュー", key="pdf_modal"):
+        st.markdown(
+            f"<iframe src='{st.session_state['pdf_modal_url']}' "
+            "width='100%' height='650' style='border:none'></iframe>",
+            unsafe_allow_html=True
+        )
+        if st.button("閉じる", key="close_modal_btn"):
+            st.session_state["pdf_modal_url"] = None
 # ---------- 類似図面ブロックここまで ----------
 
 # ---------- モーダル表示 ----------
