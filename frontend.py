@@ -100,6 +100,15 @@ if plans:
 if "pdf_modal_url" not in st.session_state:
     st.session_state["pdf_modal_url"] = None
 
+# ★★★ ここから追加：重複除去 ★★★
+# key は p["path"] でも p["filename"] でも OK。今回は path で判定
+dedup = {}
+for p in plans:
+    dedup[p["path"]] = p          # 同じ path が来たら上書き＝結果的に 1 件だけ残る
+plans = list(dedup.values())
+if "pdf_modal_url" not in st.session_state:
+    st.session_state["pdf_modal_url"] = None
+
 for idx, p in enumerate(plans):               # ★ enumerate で idx 付与
     url = sb.storage.from_("floorplans").create_signed_url(
         p["path"], 3600
