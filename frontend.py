@@ -158,7 +158,7 @@ if "pdf_modal_url" in st.session_state:
     st.write(ans)
     # ---------- チャット欄ここから ----------  ★追加開始
 st.divider()
-st.subheader("💬 追加質問・修正要望チャット")
+st.subheader("追加質問・修正要望チャット")
 
 # ① これまでのやり取りを表示
 for m in st.session_state["chat_history"]:
