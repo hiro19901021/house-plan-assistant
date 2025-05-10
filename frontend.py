@@ -4,8 +4,6 @@ if "plans" not in st.session_state:
     st.session_state["plans"] = None
 if "chat_history" not in st.session_state:      # ★追加
     st.session_state["chat_history"] = []       # ★追加
-if "overlay_url" not in st.session_state:
-    st.session_state["overlay_url"] = None
 import streamlit.components.v1 as components
 import uuid
 from slugify import slugify
@@ -82,19 +80,39 @@ if submitted:
                    {"query": query, "top_n": 3}).execute().data
     st.session_state["plans"] = plans
 
-
-# ---------- ここから置き換え ----------
-plans = st.session_state["plans"]          # 1) キャッシュを取り出す
+# ---------- 類似図面（重複除去→一覧→モーダル） ----------
+plans = st.session_state.get("plans")          # ① 取得
 if plans:
-    st.subheader("類似図面")
-    for p in plans:
-        url = sb.storage.from_("floorplans").create_signed_url(
-            p["path"], 3600
-        ).get("signedURL")
 
-        # 2) クリックされた PDF の URL を session_state に保存
-        if st.button(p["filename"], key=f"btn_{p['id']}"):
-            st.session_state["overlay_url"] = url
+# ② 重複除去 : ?トークンを除いたファイルパスで一意化
+uniq = {}
+for p in plans:
+    key_path = p["path"].split("?")[0]     # 実ファイルパスのみ
+    if key_path not in uniq:               # 初出だけ残す
+        uniq[key_path] = p
+plans = list(uniq.values())
+
+# ③ 一覧ボタン表示
+st.subheader("類似図面")
+for idx, p in enumerate(plans):
+    signed = sb.storage.from_("floorplans").create_signed_url(
+        p["path"], 3600
+    ).get("signedURL")
+
+    if st.button(p["filename"], key=f"plan_btn_{idx}"):
+        st.session_state["pdf_modal_url"] = signed   # モーダル用 URL
+
+# ④ モーダル表示（キー付きで重複阻止）
+if st.session_state.get("pdf_modal_url"):
+with st.modal("図面プレビュー", key="pdf_modal"):
+    st.markdown(
+        f"<iframe src='{st.session_state['pdf_modal_url']}' "
+        "width='100%' height='650' style='border:none'></iframe>",
+        unsafe_allow_html=True
+    )
+    if st.button("閉じる", key="close_modal_btn"):
+        st.session_state["pdf_modal_url"] = None
+# ---------- 類似図面ブロックここまで ----------
 
 # ---------- モーダル表示 ----------
 if "pdf_modal_url" not in st.session_state:
@@ -106,7 +124,6 @@ dedup = {}
 for p in plans:
     dedup[p["path"]] = p          # 同じ path が来たら上書き＝結果的に 1 件だけ残る
 plans = list(dedup.values())
-if "pdf_modal_url" not in st.session_state:
     st.session_state["pdf_modal_url"] = None
 
 for idx, p in enumerate(plans):               # ★ enumerate で idx 付与
