@@ -96,42 +96,43 @@ if plans:
 
 # ---------- モーダル表示 ----------
 if st.session_state["overlay_url"]:
-    import urllib.parse
+    import urllib.parse, streamlit.components.v1 as components
 
     viewer = "https://mozilla.github.io/pdf.js/web/viewer.html?file="
     iframe_url = viewer + urllib.parse.quote_plus(
         st.session_state["overlay_url"]
     )
 
-    placeholder = st.empty()  # 空のコンテナを確保
-    placeholder.markdown(
-        f"""
-        <div id="pdf_overlay" style="
-                position:fixed;top:0;left:0;width:100%;height:100%;
-                background:rgba(0,0,0,0.7);z-index:9999;">
-            <div style="
-                position:absolute;top:5%;left:5%;width:90%;height:90%;
-                background:#fff;border-radius:8px;overflow:hidden;">
-            <iframe src="{iframe_url}"
-                    width="100%" height="100%" style="border:none;"></iframe>
-            <button onclick="document.getElementById('pdf_overlay').remove()"
-                    style="
-                        position:absolute;top:8px;right:16px;z-index:10000;
-                        padding:6px 12px;font-size:18px;border:none;
-                        background:#fff;border-radius:4px;cursor:pointer;">
-                ✕
-            </button>
-            </div>
+    overlay_html = f"""
+    <div id="sp_overlay" style="
+            position:fixed;top:0;left:0;width:100%;height:100%;
+            background:rgba(0,0,0,0.7);z-index:9999;">
+        <div style="
+            position:absolute;top:5%;left:5%;width:90%;height:90%;
+            background:#fff;border-radius:8px;overflow:hidden;">
+        <iframe src='{iframe_url}'
+                width='100%' height='100%' style='border:none;'></iframe>
+        <button id="sp_close" style="
+                position:absolute;top:8px;right:16px;z-index:10000;
+                padding:6px 12px;font-size:18px;border:none;
+                background:#fff;border-radius:4px;cursor:pointer;">
+            ✕
+        </button>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    </div>
 
-    # Python 側のフラグも消しておく（次のクリックで再表示）
+    <script>
+        document.getElementById("sp_close").onclick = function () {{
+            document.getElementById("sp_overlay").remove();
+        }};
+    </script>
+    """
+
+    components.html(overlay_html, height=0, width=0)   # JS 実行可
+
+    # Python 側のフラグは消しておく（次クリックで再表示）
     st.session_state["overlay_url"] = None
 # ---------- モーダル表示ここまで ----------
-
-
 
     st.subheader("提案プラン")
     ctx = "\n".join(f"{p['filename']}" for p in plans)
