@@ -79,7 +79,7 @@ if submitted:
     for p in plans:
         url = sb.storage.from_("floorplans").create_signed_url(
             p["path"], 3600
-        ).link
+        ).get("signedURL")
 
         if st.button(p["filename"]):
             overlay_html = f"""
