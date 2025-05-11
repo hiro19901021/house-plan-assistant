@@ -1,16 +1,12 @@
 import streamlit as st, backend as be, textwrap
-import streamlit.components.v1 as components
-import uuid
-from slugify import slugify
-import urllib.parse
-
-# ---------- 変数の準備 ----------
-if "plan_requested" not in st.session_state:
-    st.session_state["plan_requested"] = False
+# ---------- Overlay 用セッション状態 ----------
 if "plans" not in st.session_state:
     st.session_state["plans"] = None
 if "overlay_url" not in st.session_state:
     st.session_state["overlay_url"] = None
+import streamlit.components.v1 as components
+import uuid
+from slugify import slugify
 
 openai_key = st.secrets["OPENAI_API_KEY"]
 be.openai.api_key = openai_key
@@ -49,11 +45,11 @@ if st.sidebar.button("Register PDFs") and pdfs:
             full_txt = be.pdf_to_text(pdf.getvalue())
             for chunk in be.chunk_text(full_txt):
                 emb = be.embed(chunk)
-                sb.table("floorplans").insert(
-                    {"filename": pdf.name,
-                     "path": path,
-                     "embedding": emb}
-                ).execute()
+            sb.table("floorplans").insert(
+                {"filename": pdf.name,
+                 "path": path,
+                 "embedding": emb}
+            ).execute()
 
             st.sidebar.success(f"✓ {pdf.name} uploaded")
         except Exception as e:
@@ -81,73 +77,75 @@ if submitted:
         f"{fam}人 {rooms}部屋 {area}㎡ 予算{bud}万円 {pref}")
     plans = sb.rpc("match_plans",
                    {"query": query, "top_n": 3}).execute().data
-    st.session_state["plan_requested"] = True  # ボタンが押された！
     st.session_state["plans"] = plans
 
-# ---------- プラン提示結果表示 ----------
-if st.session_state["plan_requested"]:  # ボタンが押されたら表示
-    plans = st.session_state["plans"]
-    if plans:
-        st.subheader("類似図面")
-        for p in plans:
-            url = sb.storage.from_("floorplans").create_signed_url(
-                p["path"], 3600
-            ).get("signedURL")
+    st.subheader("提案プラン")  # 👈 ここに移動
+    ctx = "\n".join(f"{p['filename']}" for p in plans)
+    prompt = f"""あなたはハウスメーカーの設計士です。
+要望: 家族{fam}人, {rooms}部屋, {area}㎡, 予算{bud}万円
+こだわり: {pref}
+参考図面: {ctx}
+日本語で最適なプランを3案提案してください。"""
+    with st.spinner("提案プランを検討中です…"):
+        ans = be.openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role":"user","content":prompt}]
+        ).choices[0].message.content
+    st.write(ans)
 
-            # 2) クリックされた PDF の URL を session_state に保存
-            if st.button(p["filename"], key=f"btn_{p['id']}"):
-                st.session_state["overlay_url"] = url
+# ---------- ここから置き換え ----------
+plans = st.session_state["plans"]          # 1) キャッシュを取り出す
+if plans:
+    st.subheader("類似図面")
+    for p in plans:
+        url = sb.storage.from_("floorplans").create_signed_url(
+            p["path"], 3600
+        ).get("signedURL")
 
-        st.subheader("提案プラン")
-        ctx = "\n".join(f"{p['filename']}" for p in plans)
-        prompt = f"""あなたはハウスメーカーの設計士です。
-    要望: 家族{fam}人, {rooms}部屋, {area}㎡, 予算{bud}万円
-    こだわり: {pref}
-    参考図面: {ctx}
-    日本語で最適なプランを3案提案してください。"""
-        with st.spinner("提案プランを検討中です…"):
-            ans = be.openai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role":"user","content":prompt}]
-            ).choices[0].message.content
-        st.write(ans)
+        # 2) クリックされた PDF の URL を session_state に保存
+        if st.button(p["filename"], key=f"btn_{p['id']}"):
+            st.session_state["overlay_url"] = url
+            st.experimental_rerun()  # 👈  これを追加
 
-    # ---------- モーダル表示 ----------
-    if st.session_state["overlay_url"]:
-        viewer = "https://mozilla.github.io/pdf.js/web/viewer.html?file="
-        iframe_url = viewer + urllib.parse.quote_plus(
-            st.session_state["overlay_url"]
-        )
+# ---------- モーダル表示 ----------
+if st.session_state["overlay_url"]:
+    import urllib.parse, streamlit.components.v1 as components
 
-        overlay_html = """
-        <div id="sp_overlay" style="
-                position:fixed;top:0;left:0;width:100%;height:100%;
-            background:rgba(0,0,0,0.7);z-index:9999;">
-            <div style="
-                position:absolute;top:5%;left:5%;width:90%;height:90%;
-            background:#fff;border-radius:8px;overflow:hidden;">
-            <iframe src='{iframe_url}'
-                    width='100%' height='100%' style='border:none;'></iframe>
-            <button id="sp_close" style="
-                    position:absolute;top:8px;right:16px;z-index:10000;
-                padding:6px 12px;font-size:18px;border:none;
-                    background:#fff;border-radius:4px;cursor:pointer;">
-                ✕
-            </button>
-            </div>
+    viewer = "https://mozilla.github.io/pdf.js/web/viewer.html?file="
+    iframe_url = viewer + urllib.parse.quote_plus(
+        st.session_state["overlay_url"]
+    )
+
+    overlay_html = """
+    <div id="sp_overlay" style="
+            position:fixed;top:0;left:0;width:100%;height:100%;
+        background:rgba(0,0,0,0.7);z-index:9999;">
+        <div style="
+            position:absolute;top:5%;left:5%;width:90%;height:90%;
+        background:#fff;border-radius:8px;overflow:hidden;">
+        <iframe src='{iframe_url}'
+                width='100%' height='100%' style='border:none;'></iframe>
+        <button id="sp_close" style="
+                position:absolute;top:8px;right:16px;z-index:10000;
+            padding:6px 12px;font-size:18px;border:none;
+                background:#fff;border-radius:4px;cursor:pointer;">
+            ✕
+        </button>
         </div>
+    </div>
 
-        <script>
-            document.getElementById("sp_close").onclick = function () {
-                document.getElementById("sp_overlay").remove();
-            };
-        </script>
-        """
+    <script>
+        document.getElementById("sp_close").onclick = function () {
+            document.getElementById("sp_overlay").remove();
+        };
+    </script>
+    """
 
-        components.html(overlay_html, height=0, width=0)   # JS 実行可
+    components.html(overlay_html, height=0, width=0)   # JS 実行可
 
-        # Python 側のフラグは消しておく（次クリックで再表示）
-        st.session_state["overlay_url"] = None
+    # Python 側のフラグは消しておく（次クリックで再表示）
+    st.session_state["overlay_url"] = None
+# ---------- モーダル表示ここまで ----------
 
 # ---------- チャット欄ここから ----------  ★追加開始
 st.divider()
