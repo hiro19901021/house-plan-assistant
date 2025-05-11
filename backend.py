@@ -2,11 +2,22 @@ import uuid, openai, pypdf
 from io import BytesIO
 from supabase import create_client
 
-# ---- Supabase クライアント ----
 def get_sb(st):
-    return create_client(
-        st.secrets["SUPABASE_URL"],
-        st.secrets["SUPABASE_SERVICE_KEY"])   # 強権限キー
+    """
+    Supabase クライアントを返す。
+    - nested 形式  : st.secrets["supabase"]["url"]
+    - flat 形式    : st.secrets["SUPABASE_URL"]
+    どちらでも動く。
+    """
+    # URL 取得
+    url = st.secrets.get("SUPABASE_URL") \
+        or st.secrets["supabase"]["url"]
+
+    # キー取得
+    key = st.secrets.get("SUPABASE_SERVICE_KEY") \
+        or st.secrets["supabase"]["service_key"]
+
+    return create_client(url, key)
 
 # ---- PDF → テキスト ----
 def pdf_to_text(data: bytes) -> str:
