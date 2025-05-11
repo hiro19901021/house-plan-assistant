@@ -119,7 +119,7 @@ if st.session_state["plan_requested"]:  # ボタンが押されたら表示
             st.session_state["overlay_url"]
         )
 
-        overlay_html = f"""
+        overlay_html = """
         <div id="sp_overlay" style="
                 position:fixed;top:0;left:0;width:100%;height:100%;
             background:rgba(0,0,0,0.7);z-index:9999;">
