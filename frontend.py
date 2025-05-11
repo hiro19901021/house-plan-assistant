@@ -8,6 +8,10 @@ import streamlit.components.v1 as components
 import uuid
 from slugify import slugify
 
+# --- Chat セッション変数を初期化 ---
+if "chat_history" not in st.session_state:
+    st.session_state["chat_history"] = []   # 空リストで必ず存在させる
+
 openai_key = st.secrets["OPENAI_API_KEY"]
 be.openai.api_key = openai_key
 sb = be.get_sb(st)
