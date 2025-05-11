@@ -96,7 +96,7 @@ if submitted:
 # ---------- ここから置き換え ----------
 plans = st.session_state["plans"]          # 1) キャッシュを取り出す
 if plans:
-    st.subheader("類似図面")
+    st.subheader("類似図面")  # 👈 ここを上に移動
     for p in plans:
         url = sb.storage.from_("floorplans").create_signed_url(
             p["path"], 3600
@@ -105,7 +105,21 @@ if plans:
         # 2) クリックされた PDF の URL を session_state に保存
         if st.button(p["filename"], key=f"btn_{p['id']}"):
             st.session_state["overlay_url"] = url
-            st.experimental_rerun()  # 👈  これを追加
+
+    st.subheader("提案プラン")  # 👈 ここを、類似図面の下に移動
+    ctx = "\n".join(f"{p['filename']}" for p in plans)
+    prompt = f"""あなたはハウスメーカーの設計士です。
+要望: 家族{fam}人, {rooms}部屋, {area}㎡, 予算{bud}万円
+こだわり: {pref}
+参考図面: {ctx}
+日本語で最適なプランを3案提案してください。"""
+    with st.spinner("提案プランを検討中です…"):
+        ans = be.openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role":"user","content":prompt}]
+        ).choices[0].message.content
+    st.write(ans)
+# ---------- チャット欄ここから ----------  ★追加開始
 
 # ---------- モーダル表示 ----------
 if st.session_state["overlay_url"]:
@@ -146,8 +160,6 @@ if st.session_state["overlay_url"]:
     # Python 側のフラグは消しておく（次クリックで再表示）
     st.session_state["overlay_url"] = None
 # ---------- モーダル表示ここまで ----------
-
-# ---------- チャット欄ここから ----------  ★追加開始
 st.divider()
 st.subheader("追加質問・修正要望チャット")
 
