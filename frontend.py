@@ -114,18 +114,18 @@ if submitted:
 plans = st.session_state["plans"]          # 1) キャッシュを取り出す
 if plans:
     with st.spinner("回答を生成中…"):
-    st.subheader("類似図面")  # 👈 ここを上に移動
-    for p in plans:
-        url = sb.storage.from_("floorplans").create_signed_url(
-            p["path"], 3600
-        ).get("signedURL")
+        st.subheader("類似図面")  # 👈 ここを上に移動
+        for p in plans:
+            url = sb.storage.from_("floorplans").create_signed_url(
+                p["path"], 3600
+            ).get("signedURL")
 
-        # 2) クリックされた PDF の URL を session_state に保存
-        if st.button(p["filename"], key=f"btn_{p['id']}"):
-            st.session_state["overlay_url"] = url
+            # 2) クリックされた PDF の URL を session_state に保存
+            if st.button(p["filename"], key=f"btn_{p['id']}"):
+                st.session_state["overlay_url"] = url
 
-    st.subheader("提案プラン")
-    st.markdown(st.session_state["proposal_text"])
+        st.subheader("提案プラン")
+        st.markdown(st.session_state["proposal_text"])
 # ---------- チャット欄ここから ----------  ★追加開始
 
 # ---------- モーダル表示（Streamlit 標準） ----------
