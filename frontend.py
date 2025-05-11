@@ -79,20 +79,6 @@ if submitted:
                    {"query": query, "top_n": 3}).execute().data
     st.session_state["plans"] = plans
 
-    st.subheader("提案プラン")  # 👈 ここに移動
-    ctx = "\n".join(f"{p['filename']}" for p in plans)
-    prompt = f"""あなたはハウスメーカーの設計士です。
-要望: 家族{fam}人, {rooms}部屋, {area}㎡, 予算{bud}万円
-こだわり: {pref}
-参考図面: {ctx}
-日本語で最適なプランを3案提案してください。"""
-    with st.spinner("提案プランを検討中です…"):
-        ans = be.openai.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role":"user","content":prompt}]
-        ).choices[0].message.content
-    st.write(ans)
-
 # ---------- ここから置き換え ----------
 plans = st.session_state["plans"]          # 1) キャッシュを取り出す
 if plans:
