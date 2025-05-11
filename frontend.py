@@ -10,11 +10,12 @@ from slugify import slugify
 
 # --- Chat セッション変数を初期化 ---
 if "chat_history" not in st.session_state:
+    st.session_state["chat_history"] = []   # 空リスト
+
 # --- プラン固定用 ---
 if "proposal_text" not in st.session_state:
     st.session_state["proposal_text"] = None
 
-    st.session_state["chat_history"] = []   # 空リストで必ず存在させる
 
 openai_key = st.secrets["OPENAI_API_KEY"]
 be.openai.api_key = openai_key
