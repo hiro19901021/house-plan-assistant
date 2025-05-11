@@ -126,39 +126,67 @@ if submitted:
                    {"query": query, "top_n": 3}).execute().data
     st.session_state["plans"] = plans
 
-# ---------- 類似図面（重複除去→一覧→モーダル） ----------
+# ---------- 類似図面（重複除去→オーバーレイ） ----------
 plans = st.session_state.get("plans", [])
 if not isinstance(plans, list):
     plans = []
 
-# ① 重複除去
-uniq = {}
-for p in plans:
-    key = p["path"].split("?")[0]           # 署名トークンを省いて実ファイルパス
-    uniq[key] = p
+# 重複除去
+uniq = {p["path"].split("?")[0]: p for p in plans}
 plans = list(uniq.values())
 
 st.subheader("類似図面")
-
 for p in plans:
-    btn_key = f"plan_{hash(p['path'].split('?')[0])}"
+    key_path = p["path"].split("?")[0]
+    btn_key = f"plan_{hash(key_path)}"
     if st.button(p["filename"], key=btn_key):
-        # クリック→PDF を base64 へ
-        st.session_state["pdf_b64"] = pdf_to_base64(p["path"].split("?")[0])
+        st.session_state["pdf_b64"] = pdf_to_base64(key_path)
+        st.session_state["overlay_open"] = True
         st.rerun()
 
-# ② モーダル表示
-if "pdf_b64" in st.session_state:
-    with st.modal("図面プレビュー", key="pdf_modal"):
-        data_uri = f"data:application/pdf;base64,{st.session_state['pdf_b64']}"
-        st.markdown(
-            f"<iframe src='{data_uri}' width='100%' height='650' style='border:none'></iframe>",
-            unsafe_allow_html=True,
-        )
-        if st.button("閉じる", key="close_modal_btn"):
-            st.session_state.pop("pdf_b64")
-            st.rerun()
+# ---------- カスタムオーバーレイ ----------
+if st.session_state.get("overlay_open") and "pdf_b64" in st.session_state:
+    data_uri = f"data:application/pdf;base64,{st.session_state['pdf_b64']}"
+    overlay_html = f"""
+    <style>
+    .pdf-overlay {{
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
+        z-index: 10000;
+    }}
+    .pdf-box {{
+        width: 80%; height: 80%; background: #fff; border-radius: 8px; overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.3); position: relative;
+    }}
+    .close-btn {{
+        position: absolute; top: 8px; right: 12px; font-size: 24px; cursor: pointer;
+    }}
+    </style>
+    <div class="pdf-overlay" id="overlay">
+      <div class="pdf-box">
+        <span class="close-btn" onclick="parent.postMessage('close','*')">&#10005;</span>
+        <iframe src="{data_uri}" width="100%" height="100%" style="border:none"></iframe>
+      </div>
+    </div>
+    <script>
+      window.addEventListener("message", (e) => {{
+          if (e.data === "close") {{
+              const overlay = parent.document.getElementById("overlay")
+              if (overlay) overlay.remove();
+              fetch("/", {{method:"POST",headers:{{"Content-Type":"application/x-www-form-urlencoded"}},body:"overlay_close=1"}})
+          }}
+      }});
+    </script>
+    """
+    from streamlit.components.v1 import html
+    html(overlay_html, height=0, width=0)
+
+    # 受け取った POST を検知して閉じる
+    if st.experimental_get_query_params().get("overlay_close"):
+        st.session_state["overlay_open"] = False
+        st.experimental_set_query_params()   # URL パラメータを消す
 # ---------- 類似図面ブロックここまで ----------
+
 
 
 
