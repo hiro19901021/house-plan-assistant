@@ -37,6 +37,22 @@ if "chat_history" not in st.session_state:      # ★追加
 import streamlit.components.v1 as components
 import uuid
 from slugify import slugify
+# ===== ここから追加 : Supabase PDF helper =====
+import base64
+from supabase import create_client
+
+SUPA_URL = st.secrets["supabase"]["url"]
+SUPA_KEY = st.secrets["supabase"]["service_key"]   # ★ secrets.toml で後ほど設定
+supabase = create_client(SUPA_URL, SUPA_KEY)
+
+def pdf_to_base64(path: str) -> str:
+    """
+    Supabase Storage の PDF をダウンロードして base64 文字列に変換
+    path は「バケット直下からのオリジナルパス」を渡す
+    """
+    data = supabase.storage.from_("floorplans").download(path)
+    return base64.b64encode(data).decode()
+# ===== ここまで追加 =====
 
 openai_key = st.secrets["OPENAI_API_KEY"]
 be.openai.api_key = openai_key
@@ -111,36 +127,39 @@ if submitted:
     st.session_state["plans"] = plans
 
 # ---------- 類似図面（重複除去→一覧→モーダル） ----------
-# plans を空リストで初期化しておくと TypeError を根本回避
 plans = st.session_state.get("plans", [])
 if not isinstance(plans, list):
-    plans = []                  # 安全弁
+    plans = []
 
-if plans:
-    # ❶ 重複除去: 署名トークンを除いた path で辞書化
-    uniq = {}
-    for p in plans:
-        key_path = p["path"].split("?")[0]
-        uniq[key_path] = p      # 後勝ちでも内容は同じ
-    plans = list(uniq.values())
+# ① 重複除去
+uniq = {}
+for p in plans:
+    key = p["path"].split("?")[0]           # 署名トークンを省いて実ファイルパス
+    uniq[key] = p
+plans = list(uniq.values())
 
-    st.subheader("類似図面")
+st.subheader("類似図面")
 
-    # ❷ ボタン列
-    for p in plans:
-        signed = sb.storage.from_("floorplans").create_signed_url(
-            p["path"], 3600
-        ).get("signedURL")
+for p in plans:
+    btn_key = f"plan_{hash(p['path'].split('?')[0])}"
+    if st.button(p["filename"], key=btn_key):
+        # クリック→PDF を base64 へ
+        st.session_state["pdf_b64"] = pdf_to_base64(p["path"].split("?")[0])
+        st.rerun()
 
-        btn_key = f"similar_{hash(p['path'].split('?')[0])}"
-        if st.button(p["filename"], key=btn_key):
-            # 既にモーダルが開いていれば URL を更新
-            st.session_state["pdf_modal_url"] = signed
-
-# ❸ モーダル呼び出し（必ず 1 か所）
-if "pdf_modal_url" in st.session_state:
-    show_pdf_modal(st.session_state["pdf_modal_url"])
+# ② モーダル表示
+if "pdf_b64" in st.session_state:
+    with st.modal("図面プレビュー", key="pdf_modal"):
+        data_uri = f"data:application/pdf;base64,{st.session_state['pdf_b64']}"
+        st.markdown(
+            f"<iframe src='{data_uri}' width='100%' height='650' style='border:none'></iframe>",
+            unsafe_allow_html=True,
+        )
+        if st.button("閉じる", key="close_modal_btn"):
+            st.session_state.pop("pdf_b64")
+            st.rerun()
 # ---------- 類似図面ブロックここまで ----------
+
 
 
     st.subheader("提案プラン")
