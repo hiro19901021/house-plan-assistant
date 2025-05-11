@@ -10,6 +10,10 @@ from slugify import slugify
 
 # --- Chat セッション変数を初期化 ---
 if "chat_history" not in st.session_state:
+# --- プラン固定用 ---
+if "proposal_text" not in st.session_state:
+    st.session_state["proposal_text"] = None
+
     st.session_state["chat_history"] = []   # 空リストで必ず存在させる
 
 openai_key = st.secrets["OPENAI_API_KEY"]
@@ -60,6 +64,26 @@ if st.sidebar.button("Register PDFs") and pdfs:
             st.sidebar.error(f"UPLOAD NG: {e}")
             st.stop()
         # ---------- アップロード処理ここまで ----------
+# ---------- プラン生成関数 ----------
+def generate_plan(request_row, plans):
+    fam, rooms, area, bud, pref = (
+        request_row["family_size"],
+        request_row["rooms"],
+        request_row["area_sqm"],
+        request_row["budget_million_jpy"],
+        request_row["preferences"],
+    )
+    ctx = "\n".join(p["filename"] for p in plans)
+    prompt = f"""あなたはハウスメーカーの設計士です。
+要望: 家族{fam}人, {rooms}部屋, {area}㎡, 予算{bud}万円
+こだわり: {pref}
+参考図面: {ctx}
+日本語で最適なプランを3案提案してください。"""
+    rsp = be.openai.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role":"user","content":prompt}]
+    )
+    return rsp.choices[0].message.content
 
 # ---------- 要望フォーム ----------
 st.title("House-Plan Assistant")
@@ -77,11 +101,13 @@ if submitted:
         {"family_size": fam, "rooms": rooms,
          "area_sqm": area, "budget_million_jpy": bud,
          "preferences": pref}).execute().data[0]
-    query = be.embed(
-        f"{fam}人 {rooms}部屋 {area}㎡ 予算{bud}万円 {pref}")
-    plans = sb.rpc("match_plans",
-                   {"query": query, "top_n": 3}).execute().data
+
+    query = be.embed(f"{fam}人 {rooms}部屋 {area}㎡ 予算{bud}万円 {pref}")
+    plans = sb.rpc("match_plans", {"query": query, "top_n": 3}).execute().data
     st.session_state["plans"] = plans
+    st.session_state["proposal_text"] = generate_plan(req, plans)
+    st.experimental_rerun()     # フォーム送信後に画面をリロード
+
 
 # ---------- ここから置き換え ----------
 plans = st.session_state["plans"]          # 1) キャッシュを取り出す
@@ -96,60 +122,20 @@ if plans:
         if st.button(p["filename"], key=f"btn_{p['id']}"):
             st.session_state["overlay_url"] = url
 
-    st.subheader("提案プラン")  # 👈 ここを、類似図面の下に移動
-    ctx = "\n".join(f"{p['filename']}" for p in plans)
-    prompt = f"""あなたはハウスメーカーの設計士です。
-要望: 家族{fam}人, {rooms}部屋, {area}㎡, 予算{bud}万円
-こだわり: {pref}
-参考図面: {ctx}
-日本語で最適なプランを3案提案してください。"""
-    with st.spinner("提案プランを検討中です…"):
-        ans = be.openai.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role":"user","content":prompt}]
-        ).choices[0].message.content
-    st.write(ans)
+    st.subheader("提案プラン")
+    st.markdown(st.session_state["proposal_text"])
 # ---------- チャット欄ここから ----------  ★追加開始
 
-# ---------- モーダル表示 ----------
-if st.session_state["overlay_url"]:
-    import urllib.parse, streamlit.components.v1 as components
-
-    viewer = "https://mozilla.github.io/pdf.js/web/viewer.html?file="
-    iframe_url = viewer + urllib.parse.quote_plus(
-        st.session_state["overlay_url"]
-    )
-
-    overlay_html = """
-    <div id="sp_overlay" style="
-            position:fixed;top:0;left:0;width:100%;height:100%;
-        background:rgba(0,0,0,0.7);z-index:9999;">
-        <div style="
-            position:absolute;top:5%;left:5%;width:90%;height:90%;
-        background:#fff;border-radius:8px;overflow:hidden;">
-        <iframe src='{iframe_url}'
-                width='100%' height='100%' style='border:none;'></iframe>
-        <button id="sp_close" style="
-                position:absolute;top:8px;right:16px;z-index:10000;
-            padding:6px 12px;font-size:18px;border:none;
-                background:#fff;border-radius:4px;cursor:pointer;">
-            ✕
-        </button>
-        </div>
-    </div>
-
-    <script>
-        document.getElementById("sp_close").onclick = function () {
-            document.getElementById("sp_overlay").remove();
-        };
-    </script>
-    """
-
-    components.html(overlay_html, height=0, width=0)   # JS 実行可
-
-    # Python 側のフラグは消しておく（次クリックで再表示）
+# ---------- モーダル表示（Streamlit 標準） ----------
+if st.session_state.get("overlay_url"):
+    with st.modal("図面プレビュー"):
+        st.components.v1.iframe(
+            st.session_state["overlay_url"],
+            height=600, width=800
+        )
+    # ×で閉じたらフラグを消す
     st.session_state["overlay_url"] = None
-# ---------- モーダル表示ここまで ----------
+
 st.divider()
 st.subheader("追加質問・修正要望チャット")
 
@@ -165,7 +151,15 @@ if user_msg := st.chat_input("ここに質問や修正要望を入力してく�
 
     # ②-2 LLM へ送信
     with st.spinner("回答を生成中…"):
-        system_prompt = "これまでのプラン提案と以下の追加要望を踏まえて回答してください。"
+        system_prompt = f"""
+        あなたはハウスメーカーの営業担当です。
+        以下のプラン概要を前提に、お客様の追加質問に答えてください。
+
+        --- プラン概要 ---
+        {st.session_state['proposal_text']}
+        ------------------
+        """
+
         reply = be.openai.chat.completions.create(
             model="gpt-4o-mini",
             messages=(
