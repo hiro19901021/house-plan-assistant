@@ -1,58 +1,12 @@
-# ===== 共通ヘルパー =====
-import streamlit as st
-def show_pdf_modal(url: str):
-    """
-    Streamlit ≥1.29 なら st.modal を使う。
-    それ未満、またはネスト制限で AttributeError が出る環境では
-    簡易ダイアログに自動フォールバックする。
-    """
-    def _body():
-        st.markdown(
-            f"<iframe src='{url}' width='100%' height='650' style='border:none'></iframe>",
-            unsafe_allow_html=True,
-        )
-
-    # st.modal が使えるか判定
-    if hasattr(st, "modal"):
-        try:
-            with st.modal("図面プレビュー", key="pdf_modal"):
-                _body()
-                if st.button("閉じる", key="close_modal_btn"):
-                    st.session_state.pop("pdf_modal_url", None)
-                    st.rerun()
-        except AttributeError:
-            # まれにネスト制限で AttributeError が出る場合
-            st.warning("⚠️ 表示環境の都合で簡易プレビューになります")
-            _body()
-    else:
-        st.warning("⚠️ Streamlit のバージョンが古いため簡易プレビューになります")
-        _body()
-
 import streamlit as st, backend as be, textwrap
 # ---------- Overlay 用セッション状態 ----------
-if "plans" not in st.session_state or not isinstance(st.session_state["plans"], list):
-    st.session_state["plans"] = []     # 空リストを保証
-if "chat_history" not in st.session_state:      # ★追加
-    st.session_state["chat_history"] = []       # ★追加
+if "plans" not in st.session_state:
+    st.session_state["plans"] = None
+if "overlay_url" not in st.session_state:
+    st.session_state["overlay_url"] = None
 import streamlit.components.v1 as components
 import uuid
 from slugify import slugify
-# ===== ここから追加 : Supabase PDF helper =====
-import base64
-from supabase import create_client
-
-SUPA_URL = st.secrets["supabase"]["url"]
-SUPA_KEY = st.secrets["supabase"]["service_key"]   # ★ secrets.toml で後ほど設定
-supabase = create_client(SUPA_URL, SUPA_KEY)
-
-def pdf_to_base64(path: str) -> str:
-    """
-    Supabase Storage の PDF をダウンロードして base64 文字列に変換
-    path は「バケット直下からのオリジナルパス」を渡す
-    """
-    data = supabase.storage.from_("floorplans").download(path)
-    return base64.b64encode(data).decode()
-# ===== ここまで追加 =====
 
 openai_key = st.secrets["OPENAI_API_KEY"]
 be.openai.api_key = openai_key
@@ -126,69 +80,59 @@ if submitted:
                    {"query": query, "top_n": 3}).execute().data
     st.session_state["plans"] = plans
 
-# ---------- 類似図面（重複除去→オーバーレイ） ----------
-plans = st.session_state.get("plans", [])
-if not isinstance(plans, list):
-    plans = []
 
-# 重複除去
-uniq = {p["path"].split("?")[0]: p for p in plans}
-plans = list(uniq.values())
+# ---------- ここから置き換え ----------
+plans = st.session_state["plans"]          # 1) キャッシュを取り出す
+if plans:
+    st.subheader("類似図面")
+    for p in plans:
+        url = sb.storage.from_("floorplans").create_signed_url(
+            p["path"], 3600
+        ).get("signedURL")
 
-st.subheader("類似図面")
-for p in plans:
-    key_path = p["path"].split("?")[0]
-    btn_key = f"plan_{hash(key_path)}"
-    if st.button(p["filename"], key=btn_key):
-        st.session_state["pdf_b64"] = pdf_to_base64(key_path)
-        st.session_state["overlay_open"] = True
-        st.rerun()
+        # 2) クリックされた PDF の URL を session_state に保存
+        if st.button(p["filename"], key=f"btn_{p['id']}"):
+            st.session_state["overlay_url"] = url
 
-# ---------- カスタムオーバーレイ ----------
-if st.session_state.get("overlay_open") and "pdf_b64" in st.session_state:
-    data_uri = f"data:application/pdf;base64,{st.session_state['pdf_b64']}"
+# ---------- モーダル表示 ----------
+if st.session_state["overlay_url"]:
+    import urllib.parse, streamlit.components.v1 as components
+
+    viewer = "https://mozilla.github.io/pdf.js/web/viewer.html?file="
+    iframe_url = viewer + urllib.parse.quote_plus(
+        st.session_state["overlay_url"]
+    )
+
     overlay_html = f"""
-    <style>
-    .pdf-overlay {{
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
-        z-index: 10000;
-    }}
-    .pdf-box {{
-        width: 80%; height: 80%; background: #fff; border-radius: 8px; overflow: hidden;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.3); position: relative;
-    }}
-    .close-btn {{
-        position: absolute; top: 8px; right: 12px; font-size: 24px; cursor: pointer;
-    }}
-    </style>
-    <div class="pdf-overlay" id="overlay">
-      <div class="pdf-box">
-        <span class="close-btn" onclick="parent.postMessage('close','*')">&#10005;</span>
-        <iframe src="{data_uri}" width="100%" height="100%" style="border:none"></iframe>
-      </div>
+    <div id="sp_overlay" style="
+            position:fixed;top:0;left:0;width:100%;height:100%;
+            background:rgba(0,0,0,0.7);z-index:9999;">
+        <div style="
+            position:absolute;top:5%;left:5%;width:90%;height:90%;
+            background:#fff;border-radius:8px;overflow:hidden;">
+        <iframe src='{iframe_url}'
+                width='100%' height='100%' style='border:none;'></iframe>
+        <button id="sp_close" style="
+                position:absolute;top:8px;right:16px;z-index:10000;
+                padding:6px 12px;font-size:18px;border:none;
+                background:#fff;border-radius:4px;cursor:pointer;">
+            ✕
+        </button>
+        </div>
     </div>
+
     <script>
-      window.addEventListener("message", (e) => {{
-          if (e.data === "close") {{
-              const overlay = parent.document.getElementById("overlay")
-              if (overlay) overlay.remove();
-              fetch("/", {{method:"POST",headers:{{"Content-Type":"application/x-www-form-urlencoded"}},body:"overlay_close=1"}})
-          }}
-      }});
+        document.getElementById("sp_close").onclick = function () {{
+            document.getElementById("sp_overlay").remove();
+        }};
     </script>
     """
-    from streamlit.components.v1 import html
-    html(overlay_html, height=0, width=0)
 
-    # 受け取った POST を検知して閉じる
-    if st.experimental_get_query_params().get("overlay_close"):
-        st.session_state["overlay_open"] = False
-        st.experimental_set_query_params()   # URL パラメータを消す
-# ---------- 類似図面ブロックここまで ----------
+    components.html(overlay_html, height=0, width=0)   # JS 実行可
 
-
-
+    # Python 側のフラグは消しておく（次クリックで再表示）
+    st.session_state["overlay_url"] = None
+# ---------- モーダル表示ここまで ----------
 
     st.subheader("提案プラン")
     ctx = "\n".join(f"{p['filename']}" for p in plans)
@@ -203,7 +147,7 @@ if st.session_state.get("overlay_open") and "pdf_b64" in st.session_state:
             messages=[{"role":"user","content":prompt}]
         ).choices[0].message.content
     st.write(ans)
-    # ---------- チャット欄ここから ----------  ★追加開始
+# ---------- チャット欄ここから ----------  ★追加開始
 st.divider()
 st.subheader("追加質問・修正要望チャット")
 
