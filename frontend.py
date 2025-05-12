@@ -92,7 +92,7 @@ def generate_plan(request_row, plans):
         request_row["preferences"],
     )
     ctx = "\n".join(p["filename"] for p in plans)
-    prompt = f"""あなたはハウスメーカーの設計士です。
+    prompt = f"""あなたはお客様の要望を確実に実現する一流ハウスメーカーの設計士です。
 要望: 家族{fam}人, {rooms}部屋, {area}㎡, 予算{bud}万円
 こだわり: {pref}
 参考図面: {ctx}
@@ -179,7 +179,7 @@ if user_msg := st.chat_input("ここに質問や修正要望を入力してく�
     # ②-2 LLM へ送信
     with st.spinner("回答を生成中…"):
         system_prompt = f"""
-        あなたはハウスメーカーの営業担当です。
+        あなたはお客様の要望を確実に実現する一流ハウスメーカーの営業担当です。
         以下のプラン概要を前提に、お客様の追加質問に答えてください。
 
         --- プラン概要 ---
