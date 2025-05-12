@@ -17,7 +17,7 @@ def init_session():
     st.session_state.setdefault("show_modal", False)
 
 def setup_ui():
-    st.set_page_config("HousePlan Assistant", layout="wide")
+    st.set_page_config(page_title="HousePlan Assistant", layout="wide")
     st.markdown("""
     <style>
     body{font-family: "Helvetica Neue", Arial; color:#222}
