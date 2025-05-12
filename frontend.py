@@ -131,13 +131,20 @@ plans = st.session_state["plans"]
 if plans:
     st.subheader("類似図面")
     for p in plans:
-        url = sb.storage.from_("floorplans").create_signed_url(
-            p["path"], 3600
-        ).get("signedURL")
+        try:
+            # ファイルが存在しないとここでエラーになる
+            url = sb.storage.from_("floorplans").create_signed_url(
+                p["path"], 3600
+            ).get("signedURL")
 
-        if st.button(p["filename"], key=f"btn_{p['id']}"):
-            with st.modal("図面プレビュー"):
-                st.components.v1.iframe(url, height=600, width=800)
+            if st.button(p["filename"], key=f"btn_{p['id']}"):
+                with st.modal("図面プレビュー"):
+                    st.components.v1.iframe(url, height=600, width=800)
+
+        except Exception as e:
+            # サインドURLの生成に失敗した場合（＝ファイルが存在しない可能性が高い）
+            st.warning(f"⚠️ 類似図面「{p['filename']}」のファイルが見つかりません。再アップロードが必要です。")
+
 
     st.subheader("提案プラン")
     st.markdown(st.session_state["proposal_text"])
