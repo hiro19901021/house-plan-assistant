@@ -16,7 +16,6 @@ if "chat_history" not in st.session_state:
 if "proposal_text" not in st.session_state:
     st.session_state["proposal_text"] = None
 
-
 openai_key = st.secrets["OPENAI_API_KEY"]
 be.openai.api_key = openai_key
 sb = be.get_sb(st)
