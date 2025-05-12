@@ -8,6 +8,29 @@ import streamlit.components.v1 as components
 import uuid
 from slugify import slugify
 
+# --- ここを frontend.py の import文のすぐ下に追加してください ---
+def init_session():
+    st.session_state.setdefault("chat_history", [])
+    st.session_state.setdefault("plans", None)
+    st.session_state.setdefault("overlay_url", None)
+    st.session_state.setdefault("proposal_text", None)
+    st.session_state.setdefault("show_modal", False)
+
+def setup_ui():
+    st.set_page_config("HousePlan Assistant", layout="wide")
+    st.markdown("""
+    <style>
+    body{font-family: "Helvetica Neue", Arial; color:#222}
+    .sidebar-content{width:260px}
+    #MainMenu,footer,header{visibility:hidden}
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 上記を呼び出す処理を追加 ---
+init_session()
+setup_ui()
+
+
 # --- Chat セッション変数を初期化 ---
 if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []   # 空リスト
@@ -97,16 +120,17 @@ with st.form("request"):
     submitted = st.form_submit_button("プラン提示")
 
 if submitted:
-    req = sb.table("customer_requests").insert(
-        {"family_size": fam, "rooms": rooms,
-         "area_sqm": area, "budget_million_jpy": bud,
-         "preferences": pref}).execute().data[0]
+    with st.spinner("プランを検討中です…"):
+        req = sb.table("customer_requests").insert(
+            {"family_size": fam, "rooms": rooms,
+             "area_sqm": area, "budget_million_jpy": bud,
+             "preferences": pref}).execute().data[0]
 
-    query = be.embed(f"{fam}人 {rooms}部屋 {area}㎡ 予算{bud}万円 {pref}")
-    plans = sb.rpc("match_plans", {"query": query, "top_n": 3}).execute().data
-    st.session_state["plans"] = plans
-    st.session_state["proposal_text"] = generate_plan(req, plans)
-    st.experimental_rerun()     # フォーム送信後に画面をリロード
+        query = be.embed(f"{fam}人 {rooms}部屋 {area}㎡ 予算{bud}万円 {pref}")
+        plans = sb.rpc("match_plans", {"query": query, "top_n": 3}).execute().data
+        st.session_state["plans"] = plans
+        st.session_state["proposal_text"] = generate_plan(req, plans)
+    st.experimental_rerun()
 
 
 # ---------- ここから置き換え ----------
@@ -118,23 +142,25 @@ if plans:
             p["path"], 3600
         ).get("signedURL")
 
-        # 2) クリックされた PDF の URL を session_state に保存
-        if st.button(p["filename"], key=f"btn_{p['id']}"):
-            st.session_state["overlay_url"] = url
+    if st.button(p["filename"], key=f"btn_{p['id']}"):
+        st.session_state["overlay_url"] = url
+        st.session_state["show_modal"] = True   # ← モーダル表示フラグを追加
 
     st.subheader("提案プラン")
     st.markdown(st.session_state["proposal_text"])
 # ---------- チャット欄ここから ----------  ★追加開始
 
 # ---------- モーダル表示（Streamlit 標準） ----------
-if st.session_state.get("overlay_url"):
+if st.session_state.get("show_modal") and st.session_state.get("overlay_url"):
     with st.modal("図面プレビュー"):
         st.components.v1.iframe(
             st.session_state["overlay_url"],
             height=600, width=800
         )
-    # ×で閉じたらフラグを消す
-    st.session_state["overlay_url"] = None
+        st.button("閉じる", on_click=lambda: st.session_state.update({
+            "show_modal": False, "overlay_url": None
+        }))
+
 
 st.divider()
 st.subheader("追加質問・修正要望チャット")
