@@ -1,16 +1,12 @@
 import streamlit as st, backend as be, textwrap
-# ---------- Overlay 用セッション状態 ----------
-if "plans" not in st.session_state:
-    st.session_state["plans"] = None
-if "overlay_url" not in st.session_state:
-    st.session_state["overlay_url"] = None
 import streamlit.components.v1 as components
 import uuid
 from slugify import slugify
-import streamlit as st
+
+# ✅ ページ設定（ここは1回だけ）
 st.set_page_config(page_title="HousePlan Assistant", layout="wide")
 
-# --- ここを frontend.py の import文のすぐ下に追加してください ---
+# --- セッション初期化と UI セットアップ ---
 def init_session():
     st.session_state.setdefault("chat_history", [])
     st.session_state.setdefault("plans", None)
@@ -27,7 +23,6 @@ def setup_ui():
     </style>
     """, unsafe_allow_html=True)
 
-# --- 上記を呼び出す処理を追加 ---
 init_session()
 setup_ui()
 
@@ -45,7 +40,6 @@ be.openai.api_key = openai_key
 sb = be.get_sb(st)
 
 # ---------- ページ設定 ----------
-st.set_page_config("HousePlan Assistant", layout="wide")
 st.markdown("""
 <style>
 body{font-family: "Helvetica Neue", Arial; color:#222}
