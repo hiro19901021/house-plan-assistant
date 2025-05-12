@@ -126,6 +126,21 @@ if submitted:
         st.session_state["plans"] = plans
         st.session_state["proposal_text"] = generate_plan(req, plans)
     st.experimental_rerun()
+# ---------- 類似図面と提案プランの表示 ----------
+plans = st.session_state["plans"]
+if plans:
+    st.subheader("類似図面")
+    for p in plans:
+        url = sb.storage.from_("floorplans").create_signed_url(
+            p["path"], 3600
+        ).get("signedURL")
+
+        if st.button(p["filename"], key=f"btn_{p['id']}"):
+            with st.modal("図面プレビュー"):
+                st.components.v1.iframe(url, height=600, width=800)
+
+    st.subheader("提案プラン")
+    st.markdown(st.session_state["proposal_text"])
 
 
 # ---------- ここから置き換え ----------
