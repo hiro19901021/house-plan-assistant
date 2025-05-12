@@ -7,6 +7,8 @@ if "overlay_url" not in st.session_state:
 import streamlit.components.v1 as components
 import uuid
 from slugify import slugify
+import streamlit as st
+st.set_page_config(page_title="HousePlan Assistant", layout="wide")
 
 # --- ここを frontend.py の import文のすぐ下に追加してください ---
 def init_session():
@@ -17,7 +19,6 @@ def init_session():
     st.session_state.setdefault("show_modal", False)
 
 def setup_ui():
-    st.set_page_config(page_title="HousePlan Assistant", layout="wide")
     st.markdown("""
     <style>
     body{font-family: "Helvetica Neue", Arial; color:#222}
