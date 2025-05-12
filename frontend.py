@@ -130,22 +130,6 @@ if submitted:
 
 # ---------- ここから置き換え ----------
 plans = st.session_state["plans"]          # 1) キャッシュを取り出す
-if plans:
-    st.subheader("類似図面")  # 👈 ここを上に移動
-    for p in plans:
-        url = sb.storage.from_("floorplans").create_signed_url(
-            p["path"], 3600
-        ).get("signedURL")
-
-    if st.button(p["filename"], key=f"btn_{p['id']}"):
-        st.session_state["overlay_url"] = url
-        st.session_state["show_modal"] = True   # ← モーダル表示フラグを追加
-
-    st.subheader("提案プラン")
-    st.markdown(st.session_state["proposal_text"])
-# ---------- チャット欄ここから ----------  ★追加開始
-
-# ---------- モーダル表示（Streamlit 標準） ----------
 if st.session_state.get("show_modal") and st.session_state.get("overlay_url"):
     with st.modal("図面プレビュー"):
         st.components.v1.iframe(
